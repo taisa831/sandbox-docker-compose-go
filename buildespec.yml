@@ -1,0 +1,31 @@
+version: 0.2
+
+env:
+  variables:
+    DOCKER_BUILDKIT: "1"
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin 396996834622.dkr.ecr.ap-northeast-1.amazonaws.com
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image....
+      - echo $IMAGE_TAG
+      - docker build -t sandbox-docker-compose-go .
+      - docker tag sandbox-docker-compose-go:latest 396996834622.dkr.ecr.ap-northeast-1.amazonaws.com/sandbox-docker-compose-go:latest
+
+post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push 396996834622.dkr.ecr.ap-northeast-1.amazonaws.com/sandbox-docker-compose-go:latest
+      - docker push 396996834622.dkr.ecr.ap-northeast-1.amazonaws.com/sandbox-docker-compose-go:${IMAGE_TAG}
+      - echo Writing image definitions file...
+      - echo "[{\"name\":\"${IMAGE_NAME}\",\"imageUri\":\"396996834622.dkr.ecr.ap-northeast-1.amazonaws.com:${IMAGE_TAG}\"}]" > imagedefinitions.json
+artifacts:
+  files: imagedefinitions.json
